@@ -1,5 +1,5 @@
 #Importing data
-setwd(dir = "C:/Users/HP/Desktop/Cambodge 2021/II.Tâches annexes/Recherches FlorentMathilde/Stats Trial Rovieng 012022/Analyses R")
+setwd(dir = "C:/Users/HP/Desktop/Cambodge 2021/II.T?ches annexes/Recherches FlorentMathilde/Stats Trial Rovieng 012022/Analyses R")
 TAB <- read.table("RDBProdD1.csv", header = T,sep = ";", dec = ".", stringsAsFactors = T)
 
 #Visualize the data
