@@ -1,111 +1,150 @@
-#Packages
+##1. Pre-requisites
+# Packages
 library(tidyverse)
 library(ggpubr)
 library(rstatix)
-
-#Importing data
-setwd(dir = "C:/Users/HP/Desktop/Cambodge 2021/II.T?ches annexes/Recherches FlorentMathilde/Stats Trial Rovieng 012022/Analyses R")
-TAB <- read.table("RDBProdD1.csv", header = T,sep = ";", dec = ".", stringsAsFactors = T)
-
-#Prepare the data
- #if needed
-melt(data-frame, na.rm = FALSE, value.name = “name”, id = 'columns')
-
-#Visualize the data
-View(TAB)
-names(TAB)
-summary(TAB)
-
-#Multiple linear regression with categorical variables - Analysis of variance
-mod <- lm(TAB$X2.Dry.weight.1000.FG..g.~Soil.preparation.2+Rice.variety+Treatment,data=TAB)
-hist(TAB$X2.Dry.weight.1000.FG..g.)
 library(emmeans)
 library(multcomp)
-moyTreat=emmeans(mod,"Soil.preparation.2")
-cld(moyTreat)
-summary(mod)
-hist(resid(mod),col = "grey", main = "")
+library(multcompView)
+library(lmerTest)
 
-mod <- lm(TAB$POXC~Soil.preparation.2+Rice.cultivar+Treatment,data=TAB)
-summary(mod)
-hist(resid(mod),col = "grey", main = "")
+# Importing data
+setwd(dir = "C:/Users/titou/OneDrive/Bureau/Cambodge 2021/II.Tâches annexes/3.Statistiques & appuiT/statscambodia2023/Thèse Vira & Writing session 2023")
+TAB <- read.table("230205_Soil data arrangement for R 2011 vs 2021.csv", header = T,sep = ";", dec = ".", stringsAsFactors = T)
 
-mod <- lm(TAB$Avail.N~Soil.preparation.2+Rice.cultivar+Treatment,data=TAB)
-summary(mod)
-hist(resid(mod),col = "grey", main = "")
+##2. Data preparation
+#Reordering Depth factor values
+TAB$Depth <- factor(TAB$Depth, levels=c('0-5','5-10','10-20','20-40','40-60','60-80','80-100'))
+#Checking for aberrant value through statistics
+summary(TAB)
+#-> We need to remove negative %N and C/N data
+TAB2 <- subset(TAB, N > 0)
+#Plotting and checking for outliers - Histogramm
+for (i in 7:14){
+hist <- ggplot(TAB2, aes(x=TAB2[,i])) + 
+  geom_histogram(binwidth=mean(TAB2[,i])/10)+xlab(colnames(TAB2[i]))
+print(hist)
+}
+#-> We remove N value < 0.3 (Too low) and N value == 2.86 (unexplained high value)
+TAB3 <- subset(TAB2, N > 0.3)
+TAB4 <- subset(TAB3, N != 2.86)
+#-> Some C values are low, we remove all values < 0.03
+TAB5 <- subset(TAB4, C > 0.03)
+#We remove values of Referent Vegetaion, we will be able to analyze these values later
+TAB6 <- subset(TAB5, Experiment != "Referentvegetation")
 
-mod <- lm(TAB$NH4~Soil.preparation.2+Rice.cultivar+Treatment,data=TAB)
-summary(mod)
-hist(resid(mod),col = "grey", main = "")
+##3. Descriptive statistics
+#Mean & standard deviation
+Expe <- TAB6[!duplicated(TAB5$Experiment),1]
+Expe <- Expe[2:4]
+Sum <- list()
+SUM <- list()
+for (i in c(7,8,10,13,14)){
+  for (j in 1:3){
+  TAB7 <- subset(TAB6, Experiment == Expe[j])
+Sum[[j]] <- TAB6 %>%
+  group_by(Year,Depth,Treatment) %>%
+  get_summary_stats(colnames(TAB7[i]), type = "mean_sd")
+  }
+  SUM[[i]] <- Sum
+}
+NsumMaiEx <- SUM[[7]][[1]]
+NsumSoyEx <- SUM[[7]][[2]]
+NsumCasEx <- SUM[[7]][[3]]
+CsumMaiEx <- SUM[[8]][[1]]
+CsumSoyEx <- SUM[[8]][[2]]
+CsumCasEx <- SUM[[8]][[3]]
+BDsumMaiEx <- SUM[[10]][[1]]
+BDsumSoyEx <- SUM[[10]][[2]]
+BDsumCasEx <- SUM[[10]][[3]]
+StNsumMaiEx <- SUM[[13]][[1]]
+StNsumSoyEx <- SUM[[13]][[2]]
+StNsumCasEx <- SUM[[13]][[3]]
+StCsumMaiEx <- SUM[[14]][[1]]
+StCsumSoyEx <- SUM[[14]][[2]]
+StCsumCasEx <- SUM[[14]][[3]]
 
-mod <- lm(TAB$NO3~Soil.preparation.2+Rice.cultivar+Treatment,data=TAB)
-summary(mod)
-hist(resid(mod),col = "grey", main = "")
+#Visualization - Boxplots
+Dept <- TAB6[!duplicated(TAB5$Depth),3]
+for (i in c(7,8,10,13,14)){
+  for (j in 1:3){
+  TAB7 <- subset(TAB6, Experiment == Expe[j])
+  for (k in 1:7){
+    TAB8 <- subset(TAB7, Depth == Dept[k])
+    bxp <- ggboxplot(TAB8, x = "Year", y = colnames(TAB[i]),
+      color = "Treatment", palette = "jco")+ ggtitle(paste(colnames(TAB[i]),Expe[j],Dept[k]))
+    print(bxp)
+    }
+  }
+}
 
-mod <- lm(TAB$Infiltration.rate....~Soil.preparation.2+Rice.cultivar+Treatment,data=TAB)
-summary(mod)
-hist(resid(mod),col = "grey", main = "")
-
-
-## Script de base datanovia ANOVA 2 facteurs
-#Data preparation
-set.seed(123)
-data("jobsatisfaction", package = "datarium")
-jobsatisfaction %>% sample_n_by(gender, education_level, size = 1)
-#Descriptive statistics
-jobsatisfaction %>%
-  group_by(gender, education_level) %>%
-  get_summary_stats(score, type = "mean_sd")
-
-#Visualization
-bxp <- ggboxplot(
-  jobsatisfaction, x = "gender", y = "score",
-  color = "education_level", palette = "jco"
-)
-bxp
-#Outliers identification
-jobsatisfaction %>%
-  group_by(gender, education_level) %>%
-  identify_outliers(score)
-
+##4. hypothesis checking + ANOVA
 #Normality hypothesis
-model  <- lm(score ~ gender*education_level,
-             data = jobsatisfaction)
-# Créer un QQ plot des résidus
-ggqqplot(residuals(model))
-#Shapiro-Wilk normality test
-shapiro_test(residuals(model))
-#per group
-jobsatisfaction %>%
-  group_by(gender, education_level) %>%
-  shapiro_test(score)
-#QQ plots per group
-ggqqplot(jobsatisfaction, "score", ggtheme = theme_bw()) +
-  facet_grid(gender ~ education_level)
-#Homoscedasticity
-jobsatisfaction %>% levene_test(score ~ gender*education_level)
+Yea <- TAB6[!duplicated(TAB5$Yea),5]
+for (i in c(7,8,10,13,14)){
+  for (j in 1:3){
+    TAB7 <- subset(TAB6, Experiment == Expe[j])
+    for (k in 1:2){
+      TAB8 <- subset(TAB7, Year == Yea[k])
+      for (l in 1:7){
+        TAB9 <- subset(TAB8, Depth == Dept[l])
+        #Modeling
+        model  <- lm(TAB9[,i] ~ Treatment,
+                     data = TAB9)
+        #Normality plot
+        plot <- ggqqplot(residuals(model))+ ggtitle(paste("Normality",colnames(TAB9[i]),Expe[j],Yea[k],Dept[l]))
+        print(plot)
+        #Normality test
+        print("")
+        print("")
+        print(paste(colnames(TAB9[i]),Expe[j],Yea[k],Dept[l]))
+        print(shapiro_test(residuals(model)))
+        #Homoscedasticity plot
+        
+        #Homoscedasticity test
+        print(TAB9 %>% levene_test(TAB9[,i] ~ Treatment))
+        #ANOVA + pairtests
+        moyTreat=emmeans(model,"Treatment")
+        print(cld(moyTreat))
+      }
+    }
+  }
+}
 
-#ANOVA
-res.aov <- jobsatisfaction %>% anova_test(score ~ gender * education_level)
-res.aov
- #Post-hoc tests
-# Regrouper les données par sexe et calculer l'anova
-model <- lm(score ~ gender * education_level, data = jobsatisfaction)
-jobsatisfaction %>%
-  group_by(gender) %>%
-  anova_test(score ~ education_level, error = model)
-# pairs comparison
-library(emmeans)
-pwc <- jobsatisfaction %>% 
-  group_by(gender) %>%
-  emmeans_test(score ~ education_level, p.adjust.method = "bonferroni") 
-pwc
-#Boxplots avec p-value
-# Visualisation : Boxplots avec p-values
-pwc <- pwc %>% add_xy_position(x = "gender")
-bxp +
-  stat_pvalue_manual(pwc) +
-  labs(
-    subtitle = get_test_label(res.aov, detailed = TRUE),
-    caption = get_pwc_label(pwc)
-  )
+
+### Modeling
+for (i in c(7,8,10,13,14)){
+  for (j in 1:3){
+    TAB7 <- subset(TAB6, Experiment == Expe[j])
+      for (l in 1:7){
+        TAB8 <- subset(TAB7, Depth == Dept[l])
+        print("")
+        print("")
+        print(paste(colnames(TAB8[i]),Expe[j],Dept[l]))
+        #Model creation
+        mod=lmer(TAB8[,i] ~ Treatment*Year+(1|Replicate),data=TAB8)
+        #ANOVA, fisher test results
+        anova(mod)
+        #emmeans + Tukey
+        moyTreatByYea =emmeans(mod, ~Treatment|Year)
+        tukTreatByYea=cld(moyTreatByYea)
+        print(tukTreatByYea)
+        #Plot
+         plot <- ggplot(tukTreatByYea, aes_string(x="Year", y="emmean", colour="Treatment", group="Treatment")) +
+                 geom_line(aes_string(linetype="Treatment"), size=.6) +
+                 geom_point(aes_string(shape="Treatment"), size=3) +
+                 geom_errorbar(aes_string(ymax="upper.CL", ymin="lower.CL"), width=.1) +
+                 ggtitle(paste(colnames(TAB8[i]),Expe[j],Dept[l]))+
+                 scale_x_continuous(breaks = c(2011,2021))
+         print(plot)
+    }
+  }
+}
+
+
+
+Yea[k]
+i = 8
+j = 1
+k = 1
+l = 1
