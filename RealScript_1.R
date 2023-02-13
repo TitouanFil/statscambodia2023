@@ -99,6 +99,7 @@ ID <- ID %>% distinct(ID, .keep_all = TRUE)
 TAB7$ID <- rownames(TAB7)
 TAB8 <- merge(ID, TAB7, by ="ID")
 for (i in c(7,8,10,13)){
+#Inverser x et y, pb boucle
   for (j in 1:3){
     TAB9 <- subset(TAB8, Experiment == Expe[j])
     plot <- ggplot(TAB9, aes(x = Depth, y = TAB9[,i], group = Treatment,color = Treatment)) +
@@ -108,7 +109,10 @@ for (i in c(7,8,10,13)){
     }
   }
 
-
+i = 7
+j = 1
+k = 1
+l = 1
 ##4. hypothesis checking + ANOVA for each soil depth individually
 #Normality hypothesis
 #For this part, all plots and text will be created but only the last part will appear
@@ -146,7 +150,7 @@ for (i in c(7,8,10,13,14)){
   }
 }
 
-
+TAB8[,i]
 ###5. Modeling for each soil depth individually
 #For this part, all plots and text will be created but only the last part will appear
 #As R console and plot had limit. Better to run variable one by one if needed
@@ -164,6 +168,9 @@ for (i in c(7,8,10,13,14)){
         #ANOVA, fisher test results
         anova(mod)
         #emmeans + Tukey
+        moyTreatByYea =emmeans(mod, ~Year|Treatment)
+        tukTreatByYea=cld(moyTreatByYea)
+        print(tukTreatByYea)
         moyTreatByYea =emmeans(mod, ~Treatment|Year)
         tukTreatByYea=cld(moyTreatByYea)
         print(tukTreatByYea)
@@ -178,6 +185,10 @@ for (i in c(7,8,10,13,14)){
     }
   }
 }
+
+l = 4
+j = 1
+i = 14
 
 ###6. Creation of cumulated stock for soil depths
 TAB6$ID <- paste(TAB6$Experiment,TAB6$Treatment,TAB6$Replicate,TAB6$Year)
@@ -198,20 +209,35 @@ TAB020Cum$ID <- rownames(TAB020Cum)
 TABCumDept2 <- merge(TABCumDept, TAB020Cum, by ="ID")
 colnames(TABCumDept2)[8] <- paste("NSTOCK2-020")
 colnames(TABCumDept2)[9] <- paste("CSTOCK2-020")
+#0-40
+TAB040 <- subset(TAB6, Depth == "0-5" | Depth == "5-10" | Depth == "10-20" | Depth == "20-40")
+TAB040Cum <- as.data.frame(apply(TAB040[,13:14],2,tapply, TAB040$ID, sum))
+TAB040Cum$ID <- rownames(TAB040Cum)
+TABCumDept3 <- merge(TABCumDept2, TAB040Cum, by ="ID")
+colnames(TABCumDept3)[8] <- paste("NSTOCK2-040")
+colnames(TABCumDept3)[9] <- paste("CSTOCK2-040")
 #0-60
-TAB060 <- subset(TAB6, Depth != "60-80" | Depth == "80-100")
+TAB060 <- subset(TAB6, Depth != "60-80" | Depth != "80-100")
 TAB060Cum <- as.data.frame(apply(TAB060[,13:14],2,tapply, TAB060$ID, sum))
 TAB060Cum$ID <- rownames(TAB060Cum)
-TABCumDept3 <- merge(TABCumDept2, TAB060Cum, by ="ID")
-colnames(TABCumDept3)[10] <- paste("NSTOCK2-060")
-colnames(TABCumDept3)[11] <- paste("CSTOCK2-060")
+TABCumDept4 <- merge(TABCumDept3, TAB060Cum, by ="ID")
+colnames(TABCumDept4)[10] <- paste("NSTOCK2-060")
+colnames(TABCumDept4)[11] <- paste("CSTOCK2-060")
+#0-80
+TAB080 <- subset(TAB6, Depth != "80-100")
+TAB080Cum <- as.data.frame(apply(TAB080[,13:14],2,tapply, TAB080$ID, sum))
+TAB080Cum$ID <- rownames(TAB080Cum)
+TABCumDept5 <- merge(TABCumDept4, TAB080Cum, by ="ID")
+colnames(TABCumDept5)[10] <- paste("NSTOCK2-080")
+colnames(TABCumDept5)[11] <- paste("CSTOCK2-080")
 #0-100
 TAB0100 <- TAB6
 TAB0100Cum <- as.data.frame(apply(TAB0100[,13:14],2,tapply, TAB0100$ID, sum))
 TAB0100Cum$ID <- rownames(TAB0100Cum)
-TABCumDept4 <- merge(TABCumDept3, TAB0100Cum, by ="ID")
-colnames(TABCumDept4)[12] <- paste("NSTOCK2-0100")
-colnames(TABCumDept4)[13] <- paste("CSTOCK2-0100")
+colnames(TAB0100Cum)[1] <- paste("NSTOCK2-0100")
+colnames(TAB0100Cum)[2] <- paste("CSTOCK2-0100")
+TABCumDept6 <- merge(TABCumDept5, TAB0100Cum, by ="ID")
+
 
 
 ###7. Modeling for cumulated soil depths
@@ -242,6 +268,7 @@ for (i in c(6:13)){
       print(plot)
     }
   }
+
 
 
 
