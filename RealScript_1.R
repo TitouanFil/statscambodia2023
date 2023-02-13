@@ -7,6 +7,7 @@ library(emmeans)
 library(multcomp)
 library(multcompView)
 library(lmerTest)
+library(rmarkdown)
 
 # Importing data
 setwd(dir = "C:/Users/titou/OneDrive/Bureau/Cambodge 2021/II.Tâches annexes/3.Statistiques & appuiT/statscambodia2023/Thèse Vira & Writing session 2023")
@@ -15,20 +16,23 @@ TAB <- read.table("230205_Soil data arrangement for R 2011 vs 2021.csv", header 
 ##2. Data preparation
 #Reordering Depth factor values
 TAB$Depth <- factor(TAB$Depth, levels=c('0-5','5-10','10-20','20-40','40-60','60-80','80-100'))
+colnames(TAB)[7:8] <- c("Ncont","Ccont")
 TAB$Year <- as.factor(TAB$Year)
 TAB$NSTOCK <- as.numeric(TAB$NSTOCK)
 TAB$NSTOCK2 <- as.numeric(TAB$NSTOCK2)
 #Checking for aberrant value through statistics
-summary(TAB)
 #-> We need to remove negative %N and C/N data
-TAB2 <- subset(TAB, N > 0)
+TAB2 <- subset(TAB, Ncont > 0)
 #-> We remove N value < 0.3 (Too low) and N value == 2.86 (unexplained high value)
-TAB3 <- subset(TAB2, N > 0.3)
-TAB4 <- subset(TAB3, N != 2.86)
+TAB3 <- subset(TAB2, Ncont > 0.3)
+TAB4 <- subset(TAB3, Ncont != 2.86)
 #-> Some C values are low, we remove all values < 0.03
-TAB5 <- subset(TAB4, C > 0.03)
+TAB5 <- subset(TAB4, Ccont > 0.03)
 #We remove values of Referent Vegetaion, we will be able to analyze these values later
 TAB6 <- subset(TAB5, Experiment != "Referentvegetation")
+#T1 - Summary of the data
+print("Summary")
+summary(TAB)
 # () Variables loop
 Expe <- TAB6[!duplicated(TAB5$Experiment),1]
 Expe <- Expe[2:4]
@@ -36,7 +40,7 @@ Dept <- TAB6[!duplicated(TAB5$Depth),3]
 Yea <- TAB6[!duplicated(TAB5$Yea),5]
 TukRes <- list()
 for (i in c(7,8,10,13,14)){
-  #Name
+  #T1 - Title of Variable
   print(paste(colnames(TAB6[i])))
   ##3. Descriptive statistics
   #Histogramm
@@ -46,18 +50,17 @@ for (i in c(7,8,10,13,14)){
   #Mean & standard deviation
   # () Experiment loop
   for (j in 1:3){
-    #Name
+    #T2 - Title of Experiment
     print(paste(colnames(TAB6[i]),Expe[j]))
     #Table preparation
     TAB7 <- subset(TAB6, Experiment == Expe[j])
-    #Descriptive statistics
     DescStats <- TAB7 %>%
     group_by(Year,Depth,Treatment) %>%
     get_summary_stats(colnames(TAB7[i]), type = "mean_sd")
     print(DescStats)
     # () Soil depth loop
       for (k in 1:7){
-      #Name
+      #T3 - Title of Soil Depth
       print(paste(colnames(TAB7[i]),Expe[j],Dept[k]))
       #Table preparation
       TAB8 <- subset(TAB7, Depth == Dept[k])
@@ -68,18 +71,25 @@ for (i in c(7,8,10,13,14)){
       ##4. hypothesis checking + ANOVA for each soil depth individually
       #Normality hypothesis
       #Modeling
-      model=lmer(TAB8[,i] ~ Treatment*Year+(1|Replicate),data=TAB8)
+      model=lmer(TAB8[,i] ~ Treatment*Year+(1|Treatment:Replicate),data=TAB8)
+      summary(model)
+      #T4 - Normality
+      print("Normality")
       #Normality plot
       plot <- ggqqplot(residuals(model))+ ggtitle(paste("Normality",colnames(TAB8[i]),Expe[j],Dept[k]))
       print(plot)
       print("Shapiro test for normality")
       print(shapiro_test(residuals(model)))
+      #T4 - Homoscedasticity 
+      print("Homoscedasticity")
       #Homoscedasticity plot
       plot2 <- plot(model, main = paste("Normality",colnames(TAB8[i]),Expe[j],Dept[k]))
       print(plot2)
       #Homoscedasticity test
       print("Levene test for homoscedasticity")
       print(TAB8 %>% levene_test(TAB8[,i] ~ Treatment*Year))
+      #T4 - ANOVA and CLD
+      print("ANOVA")
       #ANOVA, fisher test results
       anova(model)
       #emmeans + Tukey - Synchronic
@@ -92,6 +102,8 @@ for (i in c(7,8,10,13,14)){
       print(tukTreatByYea)
       tukTreatByYea$Depth <- Dept[k]
       TukRes[[k]] <- tukTreatByYea
+      #T4 - ANOVA plot
+      print("ANOVA plot")
       #Diachronic plot with confidence interval
       plot <- ggplot(tukYeaByTreat, aes_string(x="Year", y="emmean", colour="Treatment", group="Treatment")) +
         geom_line(aes_string(linetype="Treatment"), size=.6) +
@@ -121,6 +133,8 @@ for (i in c(7,8,10,13,14)){
       TAB9b <-  merge(TukLetter, TAB9b, by ="IDb")
       #We reverse depth factor values order
       TAB9b$Depth <- factor(TAB9b$Depth, levels=c('80-100','60-80','40-60','20-40','10-20','5-10','0-5'))
+      #T3 - Summary for all Soil depths
+      print("Summary for soil depths")
       #Plotting the soil content depending on soil depth + significant differences
       plot <- ggplot(TAB9b, aes(x = TAB9b[,i+1], y = Depth, group = Treatment,color = Treatment)) +
         geom_line(aes(color=Treatment))+ geom_point(aes(color=Treatment)) + facet_grid(cols =vars(Year))+
@@ -170,14 +184,19 @@ for (i in c(7,8,10,13,14)){
       TABCumDept6 <- merge(TABCumDept5, TAB0100Cum, by ="ID")
       ###7. Modeling for cumulated soil depths
       for (m in 1:6){
+          #T3 - Cumulated soil depth
           print(paste(colnames(TABCumDept6[5+m]),"Cumulated",Expe[j]))
           #Model creation
-          model=lmer(TABCumDept6[,5+m] ~ Treatment*Year+(1|Replicate),data=TABCumDept6)
+          model=lmer(TABCumDept6[,5+m] ~ Treatment*Year+(1|Treatment:Replicate),data=TABCumDept6)
+          #T4 - Normality
+          print("Normality")
           #Normality plot
           plot <- ggqqplot(residuals(model))+ ggtitle(paste("Normality",colnames(TABCumDept6[5+m]),Expe[j],Dept[k]))
           print(plot)
           print("Shapiro test for normality")
           print(shapiro_test(residuals(model)))
+          #T4 - Homoscedasticity
+          print("Homoscedasticity")
           #Homoscedasticity plot
           plot2 <- plot(model, main = paste("Normality",colnames(TABCumDept6[5+m]),Expe[j],Dept[k]))
           print(plot2)
@@ -185,6 +204,8 @@ for (i in c(7,8,10,13,14)){
           print("Levene test for homoscedasticity")
           n <- 5+m
           print(TABCumDept6 %>% levene_test(TABCumDept6[,n] ~ Treatment*Year))
+          #T4 - ANOVA and CLD
+          print("ANOVA")
           #ANOVA, fisher test results
           anova(model)
           #emmeans + Tukey - Synchronic
@@ -196,6 +217,8 @@ for (i in c(7,8,10,13,14)){
           tukTreatByYea=cld(moyTreatByYea)
           print(tukTreatByYea)
           #Diachronic plot with confidence interval
+          #T4 - ANOVA Plot
+          print("ANOVA Plot")
           plot <- ggplot(tukYeaByTreat, aes_string(x="Year", y="emmean", colour="Treatment", group="Treatment")) +
             geom_line(aes_string(linetype="Treatment"), size=.6) +
             geom_point(aes_string(shape="Treatment"), size=3) +
@@ -207,10 +230,6 @@ for (i in c(7,8,10,13,14)){
     }
   }
 }
-
-
-
-
 
 
 
