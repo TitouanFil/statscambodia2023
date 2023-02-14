@@ -2,14 +2,19 @@
 title: "ViraPhD"
 author: "Titouan"
 date: "2023-02-13"
-output: word_document
+output:
+  word_document: default
+  html_document:
+    df_print: paged
+    toc: true
+    theme: united
 ---
 
-# %C, %N, C stocks and N stocks Analysis
+# %C, %N, Bulk Density, C stocks and N stocks Analysis
 
 # Bos Khnor 2022
 
-```{r, echo = FALSE,message = FALSE, warning = FALSE}
+```{r setup, include=TRUE, echo = FALSE, message = FALSE, warning = FALSE, results='asis'}
 ##1. Pre-requisites
 # Packages
 library(tidyverse)
@@ -20,6 +25,8 @@ library(multcomp)
 library(multcompView)
 library(lmerTest)
 library(rmarkdown)
+library(knitr)
+library(kableExtra)
 
 # Importing data
 setwd(dir = "C:/Users/titou/OneDrive/Bureau/Cambodge 2021/II.Tâches annexes/3.Statistiques & appuiT/statscambodia2023/Thèse Vira & Writing session 2023")
@@ -32,9 +39,6 @@ colnames(TAB)[7:8] <- c("Ncont","Ccont")
 TAB$Year <- as.factor(TAB$Year)
 TAB$NSTOCK <- as.numeric(TAB$NSTOCK)
 TAB$NSTOCK2 <- as.numeric(TAB$NSTOCK2)
-```
-
-```{r, message = FALSE, warning = FALSE}
 #Checking for aberrant value through statistics
 #-> We need to remove negative %N and C/N data
 TAB2 <- subset(TAB, Ncont > 0)
@@ -45,12 +49,11 @@ TAB4 <- subset(TAB3, Ncont != 2.86)
 TAB5 <- subset(TAB4, Ccont > 0.03)
 #We remove values of Referent Vegetaion, we will be able to analyze these values later
 TAB6 <- subset(TAB5, Experiment != "Referentvegetation")
-```
-
-```{r, echo = FALSE,message = FALSE, warning = FALSE}
 #T1 - Summary of the data
-print("Summary")
-summary(TAB)
+cat('\n#', 'Summary', '\n')
+SUM <- summary(TAB)
+print(kable(SUM, "pipe", digits = 2))
+cat('\n')
 # () Variables loop
 Expe <- TAB6[!duplicated(TAB5$Experiment),1]
 Expe <- Expe[2:4]
@@ -59,69 +62,85 @@ Yea <- TAB6[!duplicated(TAB5$Yea),5]
 TukRes <- list()
 for (i in c(7,8,10,13,14)){
   #T1 - Title of Variable
-  print(paste(colnames(TAB6[i])))
+  cat('\n#',i-6,"-",colnames(TAB6[i]), '\n')
   ##3. Descriptive statistics
   #Histogramm
+  cat('\n####',"Data distribution", '\n')
   hist <- ggplot(TAB2, aes(x=TAB2[,i])) + 
   geom_histogram(binwidth=mean(TAB2[,i])/10)+xlab(colnames(TAB2[i]))
   print(hist)
   #Mean & standard deviation
   # () Experiment loop
+  cat('\n')
   for (j in 1:3){
     #T2 - Title of Experiment
-    print(paste(colnames(TAB6[i]),Expe[j]))
+    cat('\n##',i-6,"-",j,"-",paste(colnames(TAB6[i]),Expe[j]), '\n')
     #Table preparation
     TAB7 <- subset(TAB6, Experiment == Expe[j])
+    cat('\n####',"Mean and Standard deviation",'\n')
     DescStats <- TAB7 %>%
     group_by(Year,Depth,Treatment) %>%
     get_summary_stats(colnames(TAB7[i]), type = "mean_sd")
-    knitr::kable(DescStats)
+    print(kable(DescStats, "pipe", digits = 2))
+    cat('\n')
     # () Soil depth loop
       for (k in 1:7){
       #T3 - Title of Soil Depth
-      print(paste(colnames(TAB7[i]),Expe[j],Dept[k]))
+      cat('\n###',i-6,"-",j,"-",k,"-",paste(colnames(TAB7[i]),Expe[j],Dept[k]),'\n')
       #Table preparation
       TAB8 <- subset(TAB7, Depth == Dept[k])
       #Boxplots
       bxp <- ggboxplot(TAB8, x = "Year", y = colnames(TAB[i]),
                        color = "Treatment", palette = "jco")+ ggtitle(paste(colnames(TAB[i]),Expe[j],Dept[k]))
       print(bxp)
+      cat('\n')
       ##4. hypothesis checking + ANOVA for each soil depth individually
       #Normality hypothesis
       #Modeling
       model=lmer(TAB8[,i] ~ Treatment*Year+(1|Treatment:Replicate),data=TAB8)
       summary(model)
       #T4 - Normality
-      print("Normality")
+      cat('\n####',"Normality",'\n')
       #Normality plot
       plot <- ggqqplot(residuals(model))+ ggtitle(paste("Normality",colnames(TAB8[i]),Expe[j],Dept[k]))
       print(plot)
-      print("Shapiro test for normality")
-      print(shapiro_test(residuals(model)))
+      cat('\n')
+      cat('\n####',"Shapiro test for normality",'\n')
+      ST <- as.data.frame(shapiro_test(residuals(model)))
+      print(kable(ST,"pipe", digits = 2))  
+      cat('\n')
       #T4 - Homoscedasticity 
-      print("Homoscedasticity")
+      cat('\n####',"Homoscedasticity",'\n')
       #Homoscedasticity plot
-      plot2 <- plot(model, main = paste("Normality",colnames(TAB8[i]),Expe[j],Dept[k]))
+      plot2 <- plot(model, main = paste("Homoscedasticity",colnames(TAB8[i]),Expe[j],Dept[k]))
       print(plot2)
+      cat('\n')
       #Homoscedasticity test
-      print("Levene test for homoscedasticity")
-      print(TAB8 %>% levene_test(TAB8[,i] ~ Treatment*Year))
+      cat('\n####',"Levene test for homoscedasticity",'\n')
+      print(kable(TAB8 %>% levene_test(TAB8[,i] ~ Treatment*Year),"pipe", digits = 2))
+      cat('\n')
       #T4 - ANOVA and CLD
-      print("ANOVA")
+      cat('\n####',"ANOVA",'\n')
       #ANOVA, fisher test results
       anova(model)
       #emmeans + Tukey - Synchronic
+      cat('\n#####',"Year by Treatment",'\n')
       moyYeaByTreat =emmeans(model, ~Year|Treatment)
       tukYeaByTreat=cld(moyYeaByTreat)
-      print(tukYeaByTreat)
-      #emmeans + Tukey - Diachronic
+      print(kable(tukYeaByTreat, "pipe", digits = 2))
+      print(".group show differences between years for each treatments")
+      print("Degrees-of-freedom method: kenward-roger 
+            Confidence level used: 0.95 
+            significance level used: alpha = 0.05 
+            NOTE: If two or more means share the same grouping symbol,
+            then we cannot show them to be different.
+            But we also did not show them to be the same.")
       moyTreatByYea =emmeans(model, ~Treatment|Year)
       tukTreatByYea=cld(moyTreatByYea)
-      print(tukTreatByYea)
       tukTreatByYea$Depth <- Dept[k]
       TukRes[[k]] <- tukTreatByYea
       #T4 - ANOVA plot
-      print("ANOVA plot")
+      cat('\n####',"ANOVA plot",'\n')
       #Diachronic plot with confidence interval
       plot <- ggplot(tukYeaByTreat, aes_string(x="Year", y="emmean", colour="Treatment", group="Treatment")) +
         geom_line(aes_string(linetype="Treatment"), size=.6) +
@@ -130,6 +149,7 @@ for (i in c(7,8,10,13,14)){
         ggtitle(paste(colnames(TAB8[i]),Expe[j],Dept[k]))+
         geom_text(label= tukYeaByTreat$.group, nudge_x=0.1, nudge_y=0.1, check_overlap=F)
       print(plot)
+      cat('\n')
       }
     # "If" loop for % plots depending on soil depth
     if (i < 13){
@@ -152,13 +172,15 @@ for (i in c(7,8,10,13,14)){
       #We reverse depth factor values order
       TAB9b$Depth <- factor(TAB9b$Depth, levels=c('80-100','60-80','40-60','20-40','10-20','5-10','0-5'))
       #T3 - Summary for all Soil depths
-      print("Summary for soil depths")
+      cat('\n###',i-6,"-",j,"-",k+1,"-",paste(colnames(TAB7[i]),Expe[j],"Summary plot",'\n'))
       #Plotting the soil content depending on soil depth + significant differences
       plot <- ggplot(TAB9b, aes(x = TAB9b[,i+1], y = Depth, group = Treatment,color = Treatment)) +
-        geom_line(aes(color=Treatment))+ geom_point(aes(color=Treatment)) + facet_grid(cols =vars(Year))+
+        geom_line(aes(color=Treatment), orientation = "y")+ geom_point(aes(color=Treatment)) + facet_grid(cols =vars(Year))+
         ggtitle(colnames(TAB9b[i+1]),Expe[j]) + xlab(colnames(TAB9b[i+1]))+
         geom_text(label= TAB9b$.group, nudge_x=0.45, nudge_y=0.1, check_overlap=F)
       print(plot)
+      print("Numbers show differences between treatments for each years")
+      cat('\n')
     } else {
       ###6. Creation of cumulated stock for soil depths
       TAB7$ID <- paste(TAB7$Experiment,TAB7$Treatment,TAB7$Replicate,TAB7$Year)
@@ -203,39 +225,54 @@ for (i in c(7,8,10,13,14)){
       ###7. Modeling for cumulated soil depths
       for (m in 1:6){
           #T3 - Cumulated soil depth
-          print(paste(colnames(TABCumDept6[5+m]),"Cumulated",Expe[j]))
+          cat('\n###',i-6,"-",j,"-",m+7,"-",paste(colnames(TABCumDept6[5+m]),"Cumulated",Expe[j]))
+          #Boxplot
+          cat('\n')
+          bxp <- ggboxplot(TABCumDept6, x = "Year", y = colnames(TABCumDept6[5+m]),
+                       color = "Treatment", palette = "jco")+ ggtitle(paste(colnames(TABCumDept6[5+m]),"Cumulated",Expe[j]))
+          print(bxp)
           #Model creation
           model=lmer(TABCumDept6[,5+m] ~ Treatment*Year+(1|Treatment:Replicate),data=TABCumDept6)
           #T4 - Normality
-          print("Normality")
+          cat('\n####',"Normality",'\n')
           #Normality plot
-          plot <- ggqqplot(residuals(model))+ ggtitle(paste("Normality",colnames(TABCumDept6[5+m]),Expe[j],Dept[k]))
+          plot <- ggqqplot(residuals(model))+ ggtitle(paste("Normality",colnames(TABCumDept6[5+m]),Expe[j]))
           print(plot)
-          print("Shapiro test for normality")
-          print(shapiro_test(residuals(model)))
+          cat('\n')
+          cat('\n####',"Shapiro test for normality",'\n')
+          ST <- as.data.frame(shapiro_test(residuals(model)))
+          print(kable(ST,"pipe", digits = 2)) 
+          cat('\n')
           #T4 - Homoscedasticity
-          print("Homoscedasticity")
+          cat('\n####',"Homoscedasticity",'\n')
           #Homoscedasticity plot
-          plot2 <- plot(model, main = paste("Normality",colnames(TABCumDept6[5+m]),Expe[j],Dept[k]))
+          plot2 <- plot(model, main = paste("Homoscedasticity",colnames(TABCumDept6[5+m]),Expe[j]))
           print(plot2)
+          cat('\n')
           #Homoscedasticity test
-          print("Levene test for homoscedasticity")
+          cat('\n####',"Levene test for homoscedasticity",'\n')
           n <- 5+m
-          print(TABCumDept6 %>% levene_test(TABCumDept6[,n] ~ Treatment*Year))
+          print(kable(TAB8 %>% levene_test(TAB8[,i] ~ Treatment*Year),"pipe", digits = 2))
           #T4 - ANOVA and CLD
-          print("ANOVA")
+          cat('\n')
+          cat('\n####',"ANOVA",'\n')
           #ANOVA, fisher test results
           anova(model)
           #emmeans + Tukey - Synchronic
           moyYeaByTreat =emmeans(model, ~Year|Treatment)
           tukYeaByTreat=cld(moyYeaByTreat)
-          print(tukYeaByTreat)
-          #emmeans + Tukey - Diachronic
-          moyTreatByYea =emmeans(model, ~Treatment|Year)
-          tukTreatByYea=cld(moyTreatByYea)
-          print(tukTreatByYea)
+          print(kable(tukYeaByTreat, "pipe", digits = 2))
+          print(".group show differences between years for each treatments")
+          print("Degrees-of-freedom method: kenward-roger 
+          Confidence level used: 0.95 
+          significance level used: alpha = 0.05 
+          NOTE: If two or more means share the same grouping symbol,
+          then we cannot show them to be different.
+          But we also did not show them to be the same.")
+          cat('\n')
           #Diachronic plot with confidence interval
           #T4 - ANOVA Plot
+          cat('\n####',"ANOVA Plot",'\n')
           print("ANOVA Plot")
           plot <- ggplot(tukYeaByTreat, aes_string(x="Year", y="emmean", colour="Treatment", group="Treatment")) +
             geom_line(aes_string(linetype="Treatment"), size=.6) +
@@ -244,8 +281,13 @@ for (i in c(7,8,10,13,14)){
             ggtitle(paste(colnames(TABCumDept6[5+m]),Expe[j]))+
             geom_text(label= tukYeaByTreat$.group, nudge_x=0.1, nudge_y=0.1, check_overlap=F)
           print(plot)
+          cat('\n')
       }
+      cat('\n')
     }
+    cat('\n')
   }
+  cat('\n')
 }
+cat('\n')
 ```
