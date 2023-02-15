@@ -10,6 +10,8 @@ output:
     theme: united
 ---
 
+
+
 # %C, %N, Bulk Density, C stocks and N stocks Analysis
 
 # Bos Khnor 2022
