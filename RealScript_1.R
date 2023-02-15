@@ -9,11 +9,6 @@ library(multcompView)
 library(lmerTest)
 library(rmarkdown)
 
-i = 7
-j = 1
-k = 1
-l = 1
-
 
 # Importing data
 setwd(dir = "C:/Users/titou/OneDrive/Bureau/Cambodge 2021/II.Tâches annexes/3.Statistiques & appuiT/statscambodia2023/Thèse Vira & Writing session 2023")
